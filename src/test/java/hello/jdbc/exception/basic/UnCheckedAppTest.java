@@ -2,6 +2,7 @@ package hello.jdbc.exception.basic;
 
 import lombok.extern.slf4j.Slf4j;
 import org.assertj.core.api.Assertions;
+import org.assertj.core.util.VisibleForTesting;
 import org.junit.jupiter.api.Test;
 
 import java.net.ConnectException;
@@ -11,16 +12,26 @@ import java.sql.SQLException;
 public class UnCheckedAppTest {
 
     @Test
-    void checked(){
+    void unChecked(){
         Controller controller = new Controller();
         Assertions.assertThatThrownBy(()->controller.request())
                 .isInstanceOf(Exception.class);
     }
 
+    @Test
+    void printEx(){
+        Controller controller = new Controller();
+        try{
+            controller.request();
+        } catch(Exception e){
+            log.info("ex", e);
+        }
+    }
+
     static class Controller{
         Service service = new Service();
 
-        public void request() throws SQLException, ConnectException {
+        public void request() {
             service.logic();
         }
     }
@@ -35,7 +46,7 @@ public class UnCheckedAppTest {
         }
     }
     static class NetworkClient{
-        public void call() throws ConnectException {
+        public void call() {
             throw  new RuntimeConnectException("연결 실패");
         }
     }
@@ -44,7 +55,8 @@ public class UnCheckedAppTest {
             try{
                 runSQL();
             } catch (SQLException e){
-                throw new RuntimeSQLException(e);
+                //밖으로 던질 때 sqlException을 runtime으로 바꿔서 던진다.
+                throw new RuntimeSQLException(e); //기존 예외(e)를 넣어줘야 한다.
             }
         }
         public void runSQL() throws SQLException{
@@ -56,6 +68,8 @@ public class UnCheckedAppTest {
         public RuntimeConnectException(String message){
             super(message);
         }
+
+        public RuntimeConnectException(){};
     }
 
     static class RuntimeSQLException extends RuntimeException{
