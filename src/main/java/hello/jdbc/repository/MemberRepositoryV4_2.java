@@ -5,22 +5,23 @@ import hello.jdbc.repository.ex.MyDbException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.datasource.DataSourceUtils;
 import org.springframework.jdbc.support.JdbcUtils;
+import org.springframework.jdbc.support.SQLErrorCodeSQLExceptionTranslator;
+import org.springframework.jdbc.support.SQLExceptionTranslator;
 
 import javax.sql.DataSource;
 import java.sql.*;
 import java.util.NoSuchElementException;
 
 /**
- * 예외 누수 문제 해결
- * 체크 예외를 런타임 예외로 변경
- * MemberRepository 인터페이스 사용
- * throws SQLException 제거
+ * SQLExceptionTranslator 추가
  */
 @Slf4j
-public class MemberRepositoryV4_1 implements MemberRepository {
+public class MemberRepositoryV4_2 implements MemberRepository {
     private final DataSource dataSource;
+    private final SQLExceptionTranslator exceptionTranslator;
 
-    public MemberRepositoryV4_1(DataSource dataSource){
+    public MemberRepositoryV4_2(DataSource dataSource){
+        this.exceptionTranslator = new SQLErrorCodeSQLExceptionTranslator(dataSource);
         this.dataSource = dataSource;
     }
 
@@ -40,7 +41,8 @@ public class MemberRepositoryV4_1 implements MemberRepository {
             return member;
         } catch (SQLException e){
             log.error("DB error", e);
-            throw new MyDbException(e);
+            throw exceptionTranslator.translate("save", sql, e);
+
         } finally {
             close(con, pstmt, null);
 //            pstmt.close(); //Exception 터질 수 있다. -> con.close() 호출 안 될 수도
@@ -72,7 +74,8 @@ public class MemberRepositoryV4_1 implements MemberRepository {
             }
         } catch(SQLException e){
             log.error("db error", e);
-            throw new MyDbException(e);
+            throw exceptionTranslator.translate("findById", sql, e);
+
         } finally {
             close(con, pstmt, rs);
         }
@@ -94,7 +97,7 @@ public class MemberRepositoryV4_1 implements MemberRepository {
             log.info("resultSize={}", resultSize);
         } catch (SQLException e){
             log.error("DB error", e);
-            throw new MyDbException(e);
+            throw exceptionTranslator.translate("update", sql, e);
         } finally {
             close(con, pstmt, null);
 //            pstmt.close(); //Exception 터질 수 있다. -> con.close() 호출 안 될 수도
@@ -115,8 +118,8 @@ public class MemberRepositoryV4_1 implements MemberRepository {
             pstmt.setString(1, memberId);
             pstmt.executeUpdate();
         } catch (SQLException e){
-            log.error("DB error", e);
-            throw new MyDbException(e);
+            throw exceptionTranslator.translate("delete", sql, e);
+
         } finally {
             close(con, pstmt, null);
         }
